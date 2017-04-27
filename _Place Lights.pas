@@ -47,14 +47,14 @@ function Initialize: Integer;
         _thingsToIgnore.NameValueSeparator := ',';
         _thingsToIgnore.Duplicates := dupIgnore;
         _thingsToIgnore.Sorted := False;
-        _thingsToIgnore.Add(' Interior '); // ignore Interior cells
-        _thingsToIgnore.Add(' interior '); // ignore interior cells
+        // _thingsToIgnore.Add(' Interior ');       // ignore Interior cells
+        // _thingsToIgnore.Add(' interior ');       // ignore interior cells
         _thingsToIgnore.Add('SanctuaryHillsWorld'); // ignore prewar sanctuary
-        _thingsToIgnore.Add('DiamondCityFX'); // skip whatever this place is
-        _thingsToIgnore.Add('TestMadCoast'); // leave TestMadCoast alone
-        _thingsToIgnore.Add('TestClaraCoast'); // leave TestClaraCoast alone
-        _thingsToIgnore.Add('DLC03VRWorldspace'); // Dima's head is off limits
-        _thingsToIgnore.Add('TestMadWorld'); // leave TestMadWorld alone
+        _thingsToIgnore.Add('DiamondCityFX');       // skip whatever this place is
+        _thingsToIgnore.Add('TestMadCoast');        // leave TestMadCoast alone
+        _thingsToIgnore.Add('TestClaraCoast');      // leave TestClaraCoast alone
+        _thingsToIgnore.Add('DLC03VRWorldspace');   // Dima's head is off limits
+        _thingsToIgnore.Add('TestMadWorld');        // leave TestMadWorld alone
         
         // these form IDs are compared against the NAME of every reference in every cell. If there is a match (after exlusion) then the record is accepted for processing.
         // Everything caused too many lights and crashes, reducing to just trees and vines.
@@ -168,12 +168,12 @@ function Initialize: Integer;
         // _formsToModify.Add('0001D8F7'); // DebrisWoodPile01Trash [STAT:0001D8F7]
         // _formsToModify.Add('0001D8F3'); // DebrisWoodPile04Trash [STAT:0001D8F3]
         // _formsToModify.Add('0001D1C7'); // DebrisPile04 [STAT:0001D1C7]
-        // _formsToModify.Add('0001D1AF'); // TrashDecal03 [STAT:0001D1AF]
+        _formsToModify.Add('0001D1AF'); // TrashDecal03 [STAT:0001D1AF]
         // _formsToModify.Add('0001D191'); // DebrisPile03 [STAT:0001D191]
         // _formsToModify.Add('0001D17F'); // DebrisPile01Dirt [STAT:0001D17F]
         // _formsToModify.Add('0001D166'); // DebrisPile01 [STAT:0001D166]
         // _formsToModify.Add('0001D181'); // DebrisPile02 [STAT:0001D181]
-        // _formsToModify.Add('0001D184'); // TrashDecal01 [STAT:0001D184]
+        _formsToModify.Add('0001D184'); // TrashDecal01 [STAT:0001D184]
         // _formsToModify.Add('0001D18E'); // TrashDecal02 [STAT:0001D18E]
         // _formsToModify.Add('0001D199'); // DebrisPile02Trash [STAT:0001D199]
         // _formsToModify.Add('0001D1A0'); // DebrisPile01Trash [STAT:0001D1A0]
@@ -409,7 +409,7 @@ function Initialize: Integer;
         // _formsToModify.Add('00106939'); // Rubble_Flat_Trash_Lg01b [STAT:00106939]
         // _formsToModify.Add('0010693A'); // Rubble_Flat_Trash_Lg01c [STAT:0010693A]
         // _formsToModify.Add('0010693B'); // Rubble_Flat_Trash_Sm01 [STAT:0010693B]
-        // _formsToModify.Add('0010693C'); // Rubble_Flat_Trash_Sm02 [STAT:0010693C]
+        _formsToModify.Add('0010693C'); // Rubble_Flat_Trash_Sm02 [STAT:0010693C]
         // _formsToModify.Add('0010693D'); // Rubble_Flat_Trash_Sm03 [STAT:0010693D]
         // _formsToModify.Add('0010693E'); // Rubble_Flat_Trash_Sm04 [STAT:0010693E]
         // _formsToModify.Add('0010693F'); // Rubble_Flat_Trash_Sm05 [STAT:0010693F]
@@ -542,11 +542,11 @@ function Initialize: Integer;
         // _formsToModify.Add('00165015'); // OfficePaperDebris05 [STAT:00165015]
         // _formsToModify.Add('0016501E'); // OfficePaperDebris06 [STAT:0016501E]
         // _formsToModify.Add('00165022'); // OfficePaperDebris07 [STAT:00165022]
-        // _formsToModify.Add('00165023'); // OfficePaperDebrisSinglePg01 [STAT:00165023]
-        // _formsToModify.Add('00165024'); // OfficePaperDebris02 [STAT:00165024]
-        // _formsToModify.Add('00165025'); // OfficePaperDebrisSinglePg02 [STAT:00165025]
-        // _formsToModify.Add('00165026'); // OfficePaperDebrisSinglePg03 [STAT:00165026]
-        // _formsToModify.Add('00165027'); // OfficePaperDebrisSinglePg04 [STAT:00165027]
+        _formsToModify.Add('00165023'); // OfficePaperDebrisSinglePg01 [STAT:00165023]
+        _formsToModify.Add('00165024'); // OfficePaperDebris02 [STAT:00165024]
+        _formsToModify.Add('00165025'); // OfficePaperDebrisSinglePg02 [STAT:00165025]
+        _formsToModify.Add('00165026'); // OfficePaperDebrisSinglePg03 [STAT:00165026]
+        _formsToModify.Add('00165027'); // OfficePaperDebrisSinglePg04 [STAT:00165027]
         // _formsToModify.Add('0016ADBB'); // TreeNoose01_Branch [STAT:0016ADBB]
         // _formsToModify.Add('0016BAF3'); // PaperDebris01 [STAT:0016BAF3]
         // _formsToModify.Add('0016BAF5'); // PaperDebris02 [STAT:0016BAF5]
@@ -1165,20 +1165,19 @@ function LogException(Ex: Exception; context: String): Integer;
 //====================================================================================================================================================
 // returns the current time
 //====================================================================================================================================================
-function CurrentTime(sTimeFormat: const): AnsiString;
-    // const
-    //     sTimeFormat = 'hh:nn:ss'; // should be 24 hour time
+function CurrentTime(sTimeFormat: String): AnsiString;
     var
         asTime: AnsiString;
     begin
         try
-            DateTimeToString (asTime, sTimeFormat, Time);
+            DateTimeToString(asTime, sTimeFormat, Time);
             Result := asTime;
             Exit;
         except
             on Ex: Exception do 
             begin
-                Result := LogException(Ex,'Caught copying the new light to the plugin.'); 
+                LogException(Ex,'Caught getting the current time.');
+                Result := 'Sad Trombone';
                 Exit;
             end; // end on Ex
         end; // end try/except 
@@ -1246,7 +1245,7 @@ function PlaceLight(e: IInterface): integer;
             except
                 on Ex: Exception do 
                 begin
-                    Result := LogException(Ex,'Caught modifying the new light CELL, XRDS, or XLIG.'); 
+                    Result := LogException(Ex,'Caught Copying the original light.'); 
                     Exit;
                 end; // end on Ex
             end; // end try/except
@@ -1255,7 +1254,7 @@ function PlaceLight(e: IInterface): integer;
             // Copy the new light to the plugin
             try
                 newLight := wbCopyElementToFile(oldLight, _plugin, True, True); // copy new light reference record to plugin
-                AddRequiredElementMasters(newLight, _plugin, False);            // add masters to new element
+                AddRequiredElementMasters(newLight, _plugin, False);            // add masters to new element. We need this when adding the light to lost coast and nuka world ... I'm pretty sure.
             except
                 on Ex: Exception do 
                 begin
@@ -1315,7 +1314,7 @@ function PlaceLight(e: IInterface): integer;
             try
                 SetElementEditValues(newLight, 'CELL', sCell); // this needs to be the cell from the original object matching _formsToChange entries' cells (vital!)
             except
-                on e: Exception do
+                on Ex: Exception do
                 begin
                     Result := LogException(Ex,'Caught modifying the new light CELL.');
                     Exit;
