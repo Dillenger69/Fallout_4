@@ -9,18 +9,22 @@ const
     _recordCountMax = 9999999;      // maximum number of records to look through before exiting the script. There are a total of 2,174,970 records between fallout4, nuka world, and far harbor
     _exceptionCountMax = 9999999;   // number of exceptions allowed before we exit the script
     _itemsPlacedMax = 9999999;      // the maximum number of items we'll place before exiting the script.
+    _timeFormat = 'hh:nn:ss';       // the format to use with CurrentTime(_timeFormat)
 var
     _plugin: IInterface;                                                                // the new plugin
-    _fullPath, _name: String;                                                           // the FullPath and the NAME elements
+    _fullPath, _name, _signature: String;                                               // the FullPath and the NAME elements
     _thingsToIgnore, _formsToModify: TStringList;                                       // List of words to use to exit, list of base form IDs to be manipulated when they occur in the world.
     _outputCount, _exceptionCount, _recordCount, _recordsFound, _itemsPlaced: Integer;  // current count of sOutput uses and exceptions caught.
-    _newLight: IwbMainRecord;                                                           // the light to copy into all the places
 
 //====================================================================================================================================================
-//
+// Run once before starting main process.
 //====================================================================================================================================================
 function Initialize: Integer;
     begin
+        // output the start time so we can guage actual script run time ... because fo4edit loses track going over an hour.
+        AddMessage(CurrentTime(_timeFormat) + ': Script start');
+
+        // set Result to 0, we can change it to 1 for failures later.
         Result := 0;
         
         // Tally of items actually placed
@@ -37,27 +41,6 @@ function Initialize: Integer;
 
         // the tally of records we've looked at
         _recordCount := 0;
-
-        // output the start time so we can guage actual script run time ... because fo4edit loses track going over an hour.
-        AddMessage(CurrentTime() + ': Script start');
-
-        // copy one glowing sea light for distribution about the commonwealth, Far Harbor, and Nuka World
-        try
-            _newLight := RecordByFormID(FileByIndex(0), $00215EB1, False);
-        except
-            on Ex: Exception do 
-            begin
-                AddMessage('Fatal Exception Caught - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ');
-                AddMessage('CONTEXT: Caught trying to retrieve the original light reference record. Script cannot continue.');
-                AddMessage('REASON: ' + Ex.Message);                
-                AddMessage('Fatal Exception Caught - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ');
-                _outputCount := 99999999;
-                _exceptionCount := 99999999;
-                _recordCount := 99999999;
-                Result := 1;
-                Exit;
-            end; // end on Ex
-        end; // end try/except
         
         // these strings will be compared to the full path, if they occur then the script will reject the record for processing.
         _thingsToIgnore := TStringList.Create;
@@ -1021,7 +1004,7 @@ function Process(e: IInterface): Integer;
         // -------------------------------------------------------------------------------
 
         // -------------------------------------------------------------------------------
-        // set up plugin and masters
+        // set up plugin, masters, and globals
         // operate on the last override
         e := WinningOverride(e);
 
@@ -1038,6 +1021,11 @@ function Process(e: IInterface): Integer;
         
         // add masters
         AddRequiredElementMasters(e, _plugin, False);
+        
+        // Set the _fullPath, _name, and _signature globals
+        _fullPath := FullPath(e);
+        _name := Name(e);
+        _signature := Signature(e);
         // -------------------------------------------------------------------------------
 
         // -------------------------------------------------------------------------------
@@ -1047,13 +1035,9 @@ function Process(e: IInterface): Integer;
 
         // -------------------------------------------------------------------------------
         // Go through the form list. If one matches a base form in the _name then place a light there. A TDictionary lookup of the base form ID would be 1000 times faster but we don't have access to TDictionary >:(    
+        // spit out _formsToModify as a comma sparated list and check that list for the presence of the form ID stripped out of the NAME
         try
-            // spit out _formsToModify as a comma sparated list and check that list for the presence of the form ID stripped out of the NAME
-            if(pos(_name, _formsToModify.CommaText) <> 0) then
-            begin
-                // Do the actual work within PlaceLight
-                Result := PlaceLight(e);
-            end; // end if
+            if(pos(_name, _formsToModify.CommaText) <> 0) then Result := PlaceLight(e); // Do the actual work within PlaceLight
         except
             on Ex: Exception do 
             begin
@@ -1072,7 +1056,7 @@ function Finalize: Integer;
         if Assigned(_plugin) then SortMasters(_plugin);
         
         // output the completion time so we can guage actual script run time ... because fo4edit loses track going over an hour.
-        AddMessage(CurrentTime() + ': Script complete');
+        AddMessage(CurrentTime(_timeFormat) + ': Script complete');
 
         Result := 0;
     end; // end function Finalize
@@ -1085,33 +1069,35 @@ function SkipThis(e: IInterface): boolean;
     var
         a: Integer; // Iterator
     begin
+        // -------------------------------------------------------------------------------
         // skip if not a reference type
-        if Signature(e) <> 'REFR' then 
+        if _signature <> 'REFR' then 
         begin
             Result := true;
             Exit;
-        end;
-
-        // Skip if the full path is blank for some reason
-        _fullPath := FullPath(e);
+        end; // end if
+        
+        // -------------------------------------------------------------------------------
+        // Skip if the full path is blank for some reason        
         if _fullPath = '' then 
         begin
             Result := true;
             Exit;
-        end;
+        end; // end if
 
+        // -------------------------------------------------------------------------------
         // Skip if the name is blank for some reason
-        _name := Name(e);
         if _name = '' then
         begin
             Result := true;
             Exit;
-        end;
+        end; // end if
         
+        // -------------------------------------------------------------------------------
         // Go through the _thingsToIgnore list. If one matches anything in the full path then skip. Gets slower as the list gets longer.            
         for a := 0 to _thingsToIgnore.Count - 1 do
         begin
-            if pos(_thingsToIgnore.Strings[a], _fullPath) <> 0 then
+            if(pos(_thingsToIgnore.Strings[a], _fullPath) <> 0) then
             begin
                 Result := true;
                 Exit;
@@ -1122,12 +1108,29 @@ function SkipThis(e: IInterface): boolean;
             end; // end else
         end; // end for
 
-        // strip the name down to the form ID. we don't use FixedFormID because it returns the wrong numbers for nuka world.
-        if(pos('[STAT:',_name) <> 0) then _name := copy(_name,(pos('[STAT:', _name) + 6), 8);      
-        if(pos('[SCOL:',_name) <> 0) then _name := copy(_name,(pos('[SCOL:', _name) + 6), 8);
+        // -------------------------------------------------------------------------------
+        // strip the name down to the base form ID only for static objects or static collections ... everything else we toss. I thought the filter would handle this, it seems it does not.
+        // do NOT skip references with static base types
+        if(pos('[STAT:', _name) <> 0) then 
+        begin
+            _name := copy(_name, (pos('[STAT:', _name) + 6), 8);
+            Result := false;
+            Exit;
+        end;
+        
+        // -------------------------------------------------------------------------------
+        // do NOT skip references with static collection base types
+        if(pos('[SCOL:', _name) <> 0) then 
+        begin
+            _name := copy(_name, (pos('[SCOL:', _name) + 6), 8);
+            Result := false;
+            Exit;
+        end;
 
-        // do NOT skip if we make it this far.
-        Result := false;
+        // -------------------------------------------------------------------------------
+        // If we've made it this far, this is a reference type but it's base form isn't STAT or SCOL, so we're not sure what's in the name ... toss it
+        Result := true;
+        Exit;
     
     end; // end function SkipThis
 
@@ -1139,12 +1142,12 @@ function LogException(Ex: Exception; context: String): Integer;
     begin
         if(_exceptionCount < _exceptionCountMax) then
         begin
-            AddMessage(CurrentTime() + ': Exception Caught - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ');
-            AddMessage(CurrentTime() + ': CONTEXT: ' + context);
-            AddMessage(CurrentTime() + ': NAME: ' + _name);
-            AddMessage(CurrentTime() + ': FULL PATH: ' + _fullPath);
-            AddMessage(CurrentTime() + ': REASON: ' + Ex.Message);                
-            AddMessage(CurrentTime() + ': Exception Caught - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ');
+            AddMessage(CurrentTime(_timeFormat) + ': Exception Caught - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ');
+            AddMessage(CurrentTime(_timeFormat) + ': CONTEXT: ' + context);
+            AddMessage(CurrentTime(_timeFormat) + ': NAME: ' + _name);
+            AddMessage(CurrentTime(_timeFormat) + ': FULL PATH: ' + _fullPath);
+            AddMessage(CurrentTime(_timeFormat) + ': REASON: ' + Ex.Message);                
+            AddMessage(CurrentTime(_timeFormat) + ': Exception Caught - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ');
             
             // increment the global exception count
             _exceptionCount := _exceptionCount + 1;
@@ -1162,14 +1165,23 @@ function LogException(Ex: Exception; context: String): Integer;
 //====================================================================================================================================================
 // returns the current time
 //====================================================================================================================================================
-function CurrentTime: AnsiString;
-    const
-        sTimeFormat = 'hh:nn:ss'; // should be 24 hour time
+function CurrentTime(sTimeFormat: const): AnsiString;
+    // const
+    //     sTimeFormat = 'hh:nn:ss'; // should be 24 hour time
     var
         asTime: AnsiString;
     begin
-        DateTimeToString (asTime, sTimeFormat, Time);
-        Result := asTime
+        try
+            DateTimeToString (asTime, sTimeFormat, Time);
+            Result := asTime;
+            Exit;
+        except
+            on Ex: Exception do 
+            begin
+                Result := LogException(Ex,'Caught copying the new light to the plugin.'); 
+                Exit;
+            end; // end on Ex
+        end; // end try/except 
     end; // end function CurrentTime
 
 //====================================================================================================================================================
@@ -1179,7 +1191,7 @@ function sOutput(sIn: String): Integer;
     begin
         if(_outputCount < _outputCountMax) then
         begin
-            AddMessage(CurrentTime() + ': ' + sIn); // output with a timestamp
+            AddMessage(CurrentTime(_timeFormat) + ': ' + sIn); // output with a timestamp
             _outputCount := _outputCount + 1; // increment the global record output count
             Result := 0;
             Exit;
@@ -1192,85 +1204,134 @@ function sOutput(sIn: String): Integer;
     end; // end function sOutput
 
 //====================================================================================================================================================
-// Get the position and rotation of each original object, then create a light referencing 'DefaultLightWaterGlowingSea01NSCaustics [LIGH:00204273]' at those coordinates with that rotation.
+// place a green, shimmery light at the coordinates of e - Original: NAME - Base = DefaultLightWaterGlowingSea01NSCaustics [LIGH:00204273] - copied one [REFR:00215EB1] to newLight right above
 // We may need to mess with the light density once the placement works. We'll do that by removing the copied lights, then removing entries from _formsToChange and rerunning the script until we get good distribution.
 //====================================================================================================================================================
 function PlaceLight(e: IInterface): integer;
     var
-        newRecord: IInterface;           // the new record created in the plugin.
+        oldLight, newLight: IInterface;  // the old light ripped from fallout4.esm, the new light copied into the plugin
         sCell: String;                   // e's current CELL information
         pX, pY, pZ, rX, rY, rZ: Integer; // original position and rotation information of e
     begin
         if(_itemsPlaced < _itemsPlacedMax) then
         begin
+            //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+            // set result to 0, we can change it to 1 if need be before exiting.
             Result := 0;
+            
+            //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+            // get the X, Y, and Z coordinates of the item as well as the CELL info. Modify Z to be up 3 from original position and hopefully keep the lights from underground.
             try      
-                // get the X, Y, and Z coordinates of the item as well as the CELL info
                 pX := GetElementNativeValues(e, 'DATA\Position\X');
                 pY := GetElementNativeValues(e, 'DATA\Position\Y');
                 pZ := GetElementNativeValues(e, 'DATA\Position\Z');
+                pZ := pZ + 3;
                 rX := GetElementNativeValues(e, 'DATA\Rotation\X');
                 rY := GetElementNativeValues(e, 'DATA\Rotation\Y');
                 rZ := GetElementNativeValues(e, 'DATA\Rotation\Z');
-                sCell := GetElementNativeValues(e, 'CELL');
+                sCell := GetElementEditValues(e, 'CELL');
             except
                 on Ex: Exception do 
                 begin
-                    Result := LogException(Ex,'Caught getting the native values.'); 
+                    Result := LogException(Ex,'Caught getting CELL, poition, and rotation values from e.');
+                    Exit;
                 end; // end on Ex
             end; // end try/except
-
+            
+            //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+            // copy one glowing sea light for distribution about the commonwealth, Far Harbor, and Nuka World
             try
-                // copy new light reference record to plugin
-                newRecord := wbCopyElementToFile(_newLight, _plugin, True, True);
+                oldLight := RecordByFormID(FileByIndex(0), $00215EB1, False);
+                AddRequiredElementMasters(oldLight, _plugin, False);
+            except
+                on Ex: Exception do 
+                begin
+                    Result := LogException(Ex,'Caught modifying the new light CELL, XRDS, or XLIG.'); 
+                    Exit;
+                end; // end on Ex
+            end; // end try/except
+            
+            //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+            // Copy the new light to the plugin
+            try
+                newLight := wbCopyElementToFile(oldLight, _plugin, True, True); // copy new light reference record to plugin
+                AddRequiredElementMasters(newLight, _plugin, False);            // add masters to new element
             except
                 on Ex: Exception do 
                 begin
                     Result := LogException(Ex,'Caught copying the new light to the plugin.'); 
+                    Exit;
                 end; // end on Ex
             end; // end try/except
-
-            try
-                // place a green, shimmery light at those coordinates - Original: NAME - Base = DefaultLightWaterGlowingSea01NSCaustics [LIGH:00204273] - copied to _newLight in Initialize
-                SetElementNativeValues(newRecord, 'CELL', sCell);                                                       // this needs to be the cell from the original object matching _formsToChange entries' cells (vital!)
-                // SetElementEditValues(newRecord, 'XRDS', '512');                                                      // we'll start off with this radius and see how well it works.
-                // SetElementEditValues(newRecord, 'XLIG\FOV 90+/-', '0.000000');                                       // not sure what this does. Left at default.
-                // SetElementEditValues(newRecord, 'XLIG\Fade 1.0+/-', '0.000000');                                     // not sure what this does. Left at default.
-                // SetElementEditValues(newRecord, 'XLIG\End Distance Cap', '0.000000');                                // not sure what this does. Left at default.
-                // SetElementEditValues(newRecord, 'XLIG\Shadow Depth Bias', '1.000000');                               // leave this, shadows with this number of lights would kill the framerate or make the game unplayable most likely. (if that's what the param even does)
-                // SetElementEditValues(newRecord, 'XLIG\Near Clip', '0.000000');                                       // not sure what this does. Left at default.
-                // SetElementEditValues(newRecord, 'XLIG\Volumetric Intensity', '0.000000');                            // not sure what this does. Left at default.
+            
+            //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+            // modify the radius, and XLIG parameters
+            try                
+                SetElementNativeValues(newLight, 'XRDS', 1024);                            // we'll start off with this radius and see how well it works.
+                SetElementNativeValues(newLight, 'XLIG\FOV 90+/-', 0.000000);              // not sure what this does. Left at default.
+                SetElementNativeValues(newLight, 'XLIG\Fade 1.0+/-', 0.000000);            // not sure what this does. Left at default.
+                SetElementNativeValues(newLight, 'XLIG\End Distance Cap', 0.000000);       // not sure what this does. Left at default.
+                SetElementNativeValues(newLight, 'XLIG\Shadow Depth Bias', 1.000000);      // leave this, shadows with this number of lights would kill the framerate or make the game unplayable most likely. (if that's what the param even does)
+                SetElementNativeValues(newLight, 'XLIG\Near Clip', 0.000000);              // not sure what this does. Left at default.
+                SetElementNativeValues(newLight, 'XLIG\Volumetric Intensity', 0.000000);   // not sure what this does. Left at default.
             except
                 on Ex: Exception do 
                 begin
-                    Result := LogException(Ex,'Caught modifying the new light CELL in the plugin.'); 
+                    Result := LogException(Ex,'Caught modifying the new light XRDS or XLIG parameters.');
+                    Exit;
                 end; // end on Ex
             end; // end try/except
 
+            //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+            // modify position of the new light
             try
-                SetElementNativeValues(newRecord, 'DATA\Position\X', pX);           // Use original X position (vital!)
-                SetElementNativeValues(newRecord, 'DATA\Position\Y', pY);           // Use original Y position (vital!)
-                SetElementNativeValues(newRecord, 'DATA\Position\Z', (pZ + 3));     // Use modified Z position (vital!)
-                // SetElementNativeValues(newRecord, 'DATA\Rotation\X', rX);        // use original X rotation. It's a light, but it's not going to hurt anything.
-                // SetElementNativeValues(newRecord, 'DATA\Rotation\Y', rY);        // use original Y rotation. It's a light, but it's not going to hurt anything.
-                // SetElementNativeValues(newRecord, 'DATA\Rotation\Z', rZ);        // use original Z rotation. It's a light, but it's not going to hurt anything.
+                SetElementNativeValues(newLight, 'DATA\Position\X', pX);   // Use original X position (vital!)
+                SetElementNativeValues(newLight, 'DATA\Position\Y', pY);   // Use original Y position (vital!)
+                SetElementNativeValues(newLight, 'DATA\Position\Z', pZ);   // Use modified Z position (vital!)
             except
                 on Ex: Exception do 
                 begin
-                    Result := LogException(Ex,'Caught modifying the new light position in the plugin.'); 
+                    Result := LogException(Ex,'Caught modifying the new light position.');
+                    Exit;
                 end; // end on Ex
             end; // end try/except
 
-            // If there's anything left to do, we can do it to newRecord. Placement with the above data *should* be enough though.
+            //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+            // modify rotation of the new light
+            try    
+                SetElementNativeValues(newLight, 'DATA\Rotation\X', rX);   // use original X rotation. It's a light, but it's not going to hurt anything.
+                SetElementNativeValues(newLight, 'DATA\Rotation\Y', rY);   // use original Y rotation. It's a light, but it's not going to hurt anything.
+                SetElementNativeValues(newLight, 'DATA\Rotation\Z', rZ);   // use original Z rotation. It's a light, but it's not going to hurt anything.
+            except
+                on Ex: Exception do 
+                begin
+                    Result := LogException(Ex,'Caught modifying the new light rotation.');
+                    Exit;
+                end; // end on Ex
+            end; // end try/except
 
+            //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+            // Modify the CELL information to put the light in the correct vicinity
+            try
+                SetElementEditValues(newLight, 'CELL', sCell); // this needs to be the cell from the original object matching _formsToChange entries' cells (vital!)
+            except
+                on e: Exception do
+                begin
+                    Result := LogException(Ex,'Caught modifying the new light CELL.');
+                    Exit;
+                end; // end on Ex
+            end; // end try/except
+            
+            //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
             // tally up another item placed
             _itemsPlaced := _itemsPlaced + 1;
         end // end if
         else
         begin
+            //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
             // exit with 1 if we've placed maximum items.
             Result := 1;
-            Exit;
+            Exit; 
         end; // end else
     end; // end function PlaceLights
 end. // end script

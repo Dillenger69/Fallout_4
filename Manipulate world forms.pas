@@ -10,9 +10,9 @@ const
     _outputMax = 100;
 
 var
-    _plugin: IInterface;
+    _plugin, _light: IInterface;
     _fullPath, _formId, _name: String;
-    _thingsToIgnore, _formsToChange: TStringList;
+    _thingsToIgnore, _formsToChange, _outputList: TStringList;
     // _disabled: Boolean;
     _recordCount: Integer;
 
@@ -21,7 +21,13 @@ var
 //====================================================================================================================================================
 function Initialize: Integer;
     begin
-        // create list of base form IDs for disabling forms in cells.
+        // cerate list for variables
+        _outputList := TStringList.Create;
+        _outputList.NameValueSeparator := ',';
+        _outputList.Duplicates := dupAccept;
+        _outputList.Sorted := False;
+
+        // create list of base form IDs for manipulating forms in cells.
         _formsToChange := TStringList.Create;
         _formsToChange.NameValueSeparator := ',';
         _formsToChange.Duplicates := dupIgnore;
@@ -834,7 +840,7 @@ function Initialize: Integer;
         _formsToChange.Add('0203F65E'); // GlassDebrisB_DLC04 [STAT:0203F65E]
         _formsToChange.Add('0203F65F'); // GlassDebrisC_DLC04 [STAT:0203F65F]
         _formsToChange.Add('0203F660'); // GlassDebrisA_DLC04 [STAT:0203F660]
-
+                            
 
         _thingsToIgnore := TStringList.Create;
         _thingsToIgnore.NameValueSeparator := ',';
@@ -846,7 +852,8 @@ function Initialize: Integer;
         _thingsToIgnore.Add('TestClaraCoast'); // leave TestClaraCoast alone
         _thingsToIgnore.Add('DLC03VRWorldspace'); // Dima's head is off limits
         _thingsToIgnore.Add('TestMadWorld'); // leave TestMadWorld alone
-
+        
+        _outputMax := 1000;
         _recordCount := 0;
     end;
 
@@ -857,15 +864,26 @@ function Process(e: IInterface): Integer;
 
     var
         a, b: Integer;
+        lightName: String;
 
     begin
         Result := 0;
         try             
             // operate on the last override
             e := WinningOverride(e);
+
+            // if Signature(e) = 'LIGH' Then
+            // begin
+            //     lightName := Name(e);
+            //     if pos('0010C5D6', lightName) <> 0 then
+            //     begin
+            //         _light := e;
+            //     end;
+            //     Exit;
+            // end;
             
             // skip it if it's not a static collection (or whatever you want. CELL, STAT, NPC_)
-            if Signature(e) <> 'SCOL' then
+            if Signature(e) <> 'REFR' then
                 Exit;
 
             // get the full path, exit if blank.
@@ -932,8 +950,9 @@ function Process(e: IInterface): Integer;
                 AddMessage('FULL PATH: ' + _fullPath);
                 AddMessage('REASON: ' + Ex.Message);
                 
-                // give this a high enough index to halt the program since 'Halt' doesn't seem to work.
-                AddMessage(_formsToChange.ValueFromIndex[9999]);
+                // give this a high enough index to halt the program since 'Halt' doesn't seem to work. If you want to stop on the first exception.
+                // AddMessage(_formsToChange.ValueFromIndex[9999]);
+                sOutput(Ex.ToString());
             end;
         end;
     end;
@@ -942,7 +961,16 @@ function Process(e: IInterface): Integer;
 // Sort the masters then exit.
 //====================================================================================================================================================
 function Finalize: integer;
+    var
+    i: Integer;
+
     begin
+        // for i := 0 to _outputList.Count - 1 do
+        // begin
+        //     AddMessage(_outputList.Strings[i])
+        //     i := i + 1;
+        // end;
+
         if Assigned(_plugin) then
             SortMasters(_plugin);
     end;
@@ -974,28 +1002,56 @@ function sOutput(sIn: string): integer;
 function ChangeIt(e: IInterface): integer;
     
     var
-        r: IInterface;
-        modl: String;
+        newRecord: IInterface;
+        newLight: IwbElement;
+        signature, sCell, modl, lightame: String;
+        pX, pY, pZ, rX, rY, rZ: Integer;
 
     begin        
-        // copy record as override to new plugin, you must uncmoment this if you wish to manipulate the form. Then do all your work on 'r'
-        // r := wbCopyElementToFile(e, _plugin, False, True);
+        // get the X, Y, and Z coordinates of the item as well as the CELL info
+        pX := GetElementEditValues(e, 'DATA\Position\X');
+        pY := GetElementEditValues(e, 'DATA\Position\Y');
+        pZ := GetElementEditValues(e, 'DATA\Position\Z');
+        rX := GetElementEditValues(e, 'DATA\Rotation\X');
+        rY := GetElementEditValues(e, 'DATA\Rotation\Y');
+        rZ := GetElementEditValues(e, 'DATA\Rotation\Z');
+        sCell := GetElementEditValues(e, 'CELL');
+                        
+        // place a light at those coordinates - NAME - Base = DefaultLightWaterGlowingSea01NSCaustics [LIGH:00204273]
+        SetElementEditValues(newLight, 'CELL', sCell);        
+        SetElementEditValues(newLight, 'NAME', 'DefaultLightWaterGlowingSea01NSCaustics [LIGH:00204273]');
+        SetElementEditValues(newLight, 'XRDS', '512');
+        SetElementEditValues(newLight, 'XLIG\FOV 90+/-', '0.000000');
+        SetElementEditValues(newLight, 'XLIG\Fade 1.0+/-', '0.000000');
+        SetElementEditValues(newLight, 'XLIG\End Distance Cap', '0.000000');
+        SetElementEditValues(newLight, 'XLIG\Shadow Depth Bias', '1.000000');
+        SetElementEditValues(newLight, 'XLIG\Near Clip', '0.000000');
+        SetElementEditValues(newLight, 'XLIG\Volumetric Intensity', '0.000000');
+        SetElementEditValues(newLight, 'DATA\Position\X', IntToStr(pX));
+        SetElementEditValues(newLight, 'DATA\Position\Y', IntToStr(pY));
+        SetElementEditValues(newLight, 'DATA\Position\Z', IntToStr(pZ));
+        SetElementEditValues(newLight, 'DATA\Rotation\X', IntToStr(rX));
+        SetElementEditValues(newLight, 'DATA\Rotation\Y', IntToStr(rY));
+        SetElementEditValues(newLight, 'DATA\Rotation\Z', IntToStr(rZ));
+
+        // copy record as new to plugin, you must uncmoment this if you wish to manipulate the form. Then do all your work on 'r'. The light needs to be set up beforehand.
+        newRecord := wbCopyElementToFile(newLight, _plugin, True, False);
         
         // Sadly, the model path can't be changed. The game relies on file names, so in this case we copy NIF files into the right places to change thigns.
         // this is to crate a batch file to mass copy and replace NIF models. Brute force style. No fancy loops in the batch file, just a line for each NIF.
         // List out the model path of each matching form to be copied and pasted into a batch file. Replacing trees this way does not cause CTDs. It does leave behind phantom collision boxes in a few places, so people will find wood accidentally when in construction mode.
-        modl := GetEditValue(ElementByPath(e, 'Model\MODL'));
-        if (modl = '') then
-        begin
-            AddMessage(_formsToChange.ValueFromIndex[9999]);
-        end;
-        AddMessage('xcopy /Y /E "C:\SteamLibrary\steamapps\common\Fallout 4\Data\Meshes\SCOL\Fallout4.esm\CM00035887.NIF" "C:\SteamLibrary\steamapps\common\Fallout 4\Data\Meshes\' + modl + '"');
+        // modl := GetEditValue(ElementByPath(e, 'Model\MODL'));
+        // if (modl = '') then
+        // begin
+        //     AddMessage(_formsToChange.ValueFromIndex[9999]);
+        // end;
+        // AddMessage('xcopy /Y /E "C:\SteamLibrary\steamapps\common\Fallout 4\Data\Meshes\SCOL\Fallout4.esm\CM00035887.NIF" "C:\SteamLibrary\steamapps\common\Fallout 4\Data\Meshes\' + modl + '"');
 
         // set initially disabled and turn off LOD ... causes CTD around swann's pond and penn station
         // SetIsInitiallyDisabled(r, True);
         // SetIsVisibleWhenDistant(r, False);
 
-        // move to -30000 but don't disable, still causes CTDs around Pen Sreet Station and Swanns Pond
+        // move to -30000 but don't disable, still causes CTDs around Pen Sreet Station and Swan's Pond
         // SetElementNativeValues(r, 'DATA\Position\Z', '-30000');
     end;
 end.
