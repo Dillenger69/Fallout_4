@@ -1,11 +1,10 @@
 {
-    modify forms matching list in selected records.
-    OLnly used on fallout 4 so far.
+    modify forms matching list in selected records. 
+	Made for Fallout 4.
 }
 unit ManipulateWorldForms;
 
-// I gave all global variables an uncerscore at the beginning for easy identification.
-var
+var	// All global variables have an uncerscore at the beginning for easy identification.
     _plugin: IInterface;
     _formTypes, _fullPath, _formId, _name, _signature: String;
     _thingsToIgnore, _formsToChange: TStringList;
@@ -970,12 +969,11 @@ function Initialize: Integer;
 		_itemsChanged := 0;
 		_itemLimit := 9999999; // number of items we can change before the script exits
 		Result := 0;
-
-		AddMessage(_formsToChange.CommaText);
+	
     end; 
 
 //====================================================================================================================================================
-// Main process, goes through each record in the selected file one by one. Takes for fucking ever. Also, single threaded and locks up the UI. sOutput and _exceptionLimit provided as relief for out of control scripts.
+// Main process, goes through each record in the selected file one by one. Single threaded and locks up the UI. sOutput and _exceptionLimit provided as relief for out of control scripts.
 //====================================================================================================================================================
 function Process(e: IInterface): Integer;
     begin
@@ -1204,8 +1202,7 @@ function sOutput(sIn: String): Integer;
     end; // end function sOutput
 
 //====================================================================================================================================================
-// place a green, shimmery light at the coordinates of e - Original: NAME - Base = DefaultLightWaterGlowingSea01NSCaustics [LIGH:00204273] - copied one [REFR:00215EB1] to newLight right above
-// We may need to mess with the light density once the placement works. We'll do that by removing the copied lights, then removing entries from _formsToChange and rerunning the script until we get good distribution.
+// Scale each thing in place. No disabling, no moving. Hopefully this will get around the CTDs and the unobtainable quest items hidden in nonexistant trash.
 //====================================================================================================================================================
 function ChangeIt(e: IInterface): integer;
     var
